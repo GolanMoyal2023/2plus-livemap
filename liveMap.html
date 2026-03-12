@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Beacon Live Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.71rem;font-weight:600}
+.moving{background:#1a4a2e;color:#3fb950;border:1px solid #2ea043}
+.stopped{background:#3d1a1a;color:#f85149;border:1px solid #da3633}
+.live{background:#1a4a2e;color:#3fb950;border:1px solid #2ea043}
+.stale{background:#4a2a1a;color:#ffa657;border:1px solid #f0883e}
+.lost{background:#3d1a1a;color:#f85149;border:1px solid #da3633}
+.fallback{background:#1a365d;color:#79c0ff;border:1px solid #58a6ff}
+.coord a{color:#79c0ff;font-family:monospace;font-size:.77rem;text-decoration:none}
+.coord a:hover{text-decoration:underline}
+#live-map{height:100vh;width:100%}
+.map-tools{position:absolute;top:10px;left:56px;z-index:900;display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+  background:rgba(13,17,23,.88);border:1px solid #30363d;border-radius:8px;padding:6px 10px;backdrop-filter:blur(2px)}
+.map-tools button{background:#1c2128;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.74rem}
+.map-tools button:hover{border-color:#58a6ff;color:#f0f6fc}
+.map-tools label{font-size:.74rem;color:#8b949e;display:flex;align-items:center;gap:4px}
+.map-legend{background:rgba(13,17,23,.9);border:1px solid #30363d;border-radius:6px;padding:6px 8px;font-size:.72rem;color:#c9d1d9;z-index:700}
+.map-legend .row{display:flex;align-items:center;gap:6px;margin:2px 0}
+.swatch{width:10px;height:10px;border-radius:50%}
+.livemap-hud{position:absolute;right:14px;top:14px;z-index:800;background:rgba(13,17,23,.88);border:1px solid #30363d;border-radius:10px;padding:8px 10px;font-size:.76rem;color:#c9d1d9;backdrop-filter:blur(2px)}
+.livemap-hud .chip{display:inline-block;margin:0 6px 0 0;padding:3px 8px;border-radius:999px;border:1px solid #30363d;background:#161b22}
+.livemap-hud .title{display:block;color:#8b949e;font-size:.68rem;margin-bottom:6px}
+.beacon-popup{min-width:280px;line-height:1.35}
+.beacon-popup .card{background:#fff;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.2);overflow:hidden;color:#0f172a}
+.beacon-popup .head{padding:10px 14px;border-bottom:1px solid #e5e7eb;font-weight:700;font-size:.95rem}
+.beacon-popup .head.safety{background:#f97316;color:#fff}
+.beacon-popup .head.equipment{background:#2563eb;color:#fff}
+.beacon-popup .head.towed{background:#7c3aed;color:#fff}
+.beacon-popup .head.uncat{background:#1f2937;color:#fff}
+.beacon-popup .body{padding:10px 14px}
+.beacon-popup .cat{display:inline-block;padding:2px 9px;border-radius:999px;background:#0f172a1a;color:#0f172a;font-size:.72rem;margin-left:6px}
+.beacon-popup .sec{font-size:.74rem;color:#64748b;font-weight:700;margin:6px 0 4px}
+.beacon-popup .kv{display:grid;grid-template-columns:88px 1fr;gap:3px 8px;font-size:.8rem}
+.beacon-popup .k{color:#64748b}
+.beacon-popup .warn{margin-top:8px;color:#dc2626;font-weight:800}
+.beacon-popup .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.beacon-popup .btn{font-size:.72rem;padding:4px 8px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;color:#0f172a}
+.shape{display:inline-block}
+.shape-square{width:14px;height:14px;background:#2563eb;border:2px solid #fff;border-radius:2px}
+.shape-diamond{width:14px;height:14px;background:#a855f7;border:2px solid #fff;transform:rotate(45deg);border-radius:2px}
+.shape-star{color:#f97316;font-size:17px;line-height:14px}
+.shape-circle{width:14px;height:14px;background:#f97316;border:2px solid #fff;border-radius:50%}
+.shape-hex{width:14px;height:14px;background:#8b5cf6;border:2px solid #fff;clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%)}
+.status-bar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:800;background:rgba(13,17,23,.85);border:1px solid #30363d;border-radius:8px;padding:4px 12px;font-size:.72rem;color:#8b949e;backdrop-filter:blur(2px)}
+.status-bar.error{border-color:#f85149;color:#f85149}
+@media(max-width:768px){
+  .map-tools{left:10px;right:10px;top:auto;bottom:40px;justify-content:center}
+  .livemap-hud{right:8px;top:8px}
+  .beacon-popup{min-width:196px;max-width:220px;line-height:1.22}
+  .beacon-popup .card{border-radius:10px}
+  .beacon-popup .head{padding:7px 10px;font-size:.8rem}
+  .beacon-popup .body{padding:7px 10px}
+  .beacon-popup .cat{font-size:.6rem;padding:1px 6px;margin-left:4px}
+  .beacon-popup .sec{font-size:.66rem;margin:4px 0 3px}
+  .beacon-popup .kv{grid-template-columns:62px 1fr;gap:2px 6px;font-size:.7rem}
+  .beacon-popup .warn{margin-top:6px;font-size:.72rem}
+  .beacon-popup .actions{gap:4px;margin-top:6px}
+  .beacon-popup .btn{font-size:.64rem;padding:3px 6px;border-radius:5px}
+}
+</style>
+</head>
+<body>
+<div id="live-map"></div>
+<div class="map-tools" id="map-toolbar">
+  <button id="map-fit-btn" type="button">Fit Bounds</button>
+  <button id="map-skoda-btn" type="button">Center Skoda</button>
+  <button id="map-legend-btn" type="button">Hide Legend</button>
+  <label><input id="map-trackers-toggle" type="checkbox" checked>Trackers</label>
+  <label><input id="map-beacons-toggle" type="checkbox" checked>Beacons</label>
+</div>
+<div class="livemap-hud" id="livemap-hud">
+  <span class="title">LiveMap</span>
+  <span class="chip" id="hud-trackers">Trackers: 0</span>
+  <span class="chip" id="hud-beacons">Beacons: 0</span>
+  <span class="chip" id="hud-source">Source: aggregate</span>
+</div>
+<div class="status-bar" id="status-bar">Connecting...</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let API_BASE = "https://2plusnavixy.ngrok.app";
+let API_STATE = API_BASE + "/liveMap/api/state";
+
+(async function loadConfig(){
+  try {
+    const cfg = await (await fetch("api-url.json", {cache:"no-store"})).json();
+    if (cfg.api_base) {
+      API_BASE = cfg.api_base.replace(/\/+$/, "");
+      API_STATE = API_BASE + "/liveMap/api/state";
+    }
+  } catch(e) { /* use defaults */ }
+})();
+
+function esc(s){
+  if(s==null) return "\u2014";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+}
+function coord(lat,lon){
+  if(lat==null||lon==null) return "\u2014";
+  return '<div class="coord"><a href="https://maps.google.com/?q='+lat+','+lon+'" target="_blank">'+lat.toFixed(6)+', '+lon.toFixed(6)+'</a></div>';
+}
+function categoryStyle(category){
+  const c=String(category||'Uncategorized').toLowerCase();
+  if(c==='equipment') return {shape:'square', color:'#2563eb', glyph:'\u25A0'};
+  if(c==='towed device') return {shape:'diamond', color:'#a855f7', glyph:'\u25C6'};
+  if(c==='safety') return {shape:'star', color:'#f97316', glyph:'\u2605'};
+  if(c==='container') return {shape:'circle', color:'#f97316', glyph:'\u25CF'};
+  if(c==='vehicle') return {shape:'hex', color:'#8b5cf6', glyph:'\u2B22'};
+  return {shape:'square', color:'#6b7280', glyph:'\u25A0'};
+}
+function popupHeadClass(category){
+  const c=String(category||'Uncategorized').toLowerCase();
+  if(c==='safety') return 'safety';
+  if(c==='equipment') return 'equipment';
+  if(c==='towed device') return 'towed';
+  return 'uncat';
+}
+function beaconShapeHtml(category){
+  const s=categoryStyle(category);
+  if(s.shape==='star') return '<span class="shape shape-star">\u2605</span>';
+  if(s.shape==='diamond') return '<span class="shape shape-diamond"></span>';
+  if(s.shape==='circle') return '<span class="shape shape-circle"></span>';
+  if(s.shape==='hex') return '<span class="shape shape-hex"></span>';
+  return '<span class="shape shape-square"></span>';
+}
+function sourceColor(source){
+  if(source==='towed_sync') return '#f85149';
+  if(source==='attached_sync') return '#e3b341';
+  if(source==='combined') return '#a371f7';
+  if(source==='navixy') return '#58a6ff';
+  return '#3fb950';
+}
+function sourceIconGlyph(source){
+  if(source==='towed_sync') return 'T';
+  if(source==='attached_sync') return 'A';
+  if(source==='combined') return 'C';
+  if(source==='navixy') return 'N';
+  return 'D';
+}
+function computeConfidence(source, speed){
+  if(source==='combined') return 'High';
+  if(source==='direct') return (speed!=null && Number(speed)>2)?'High':'Medium';
+  return 'Medium';
+}
+function sourceReasonText(reason){
+  const m={
+    direct_fresher:'Direct is fresher',
+    navixy_fresher:'Navixy is fresher',
+    direct_missing:'Direct missing position',
+    navixy_missing:'Navixy missing position',
+    direct_has_timestamp:'Direct has newer timestamp signal',
+    navixy_has_timestamp:'Navixy has newer timestamp signal',
+    blended_close_time_and_distance:'Blended (time+distance matched)',
+    sticky_last_known_position:'Using sticky last known position',
+    attached_live_sync:'Attached live sync to host tracker',
+    towed_sync_override:'Towed sync override'
+  };
+  return m[reason]||reason||'';
+}
+
+let map=null, mapLayer=null, mapInit=false;
+let markerGroups={trackers:null,beacons:null};
+let latestAggregate=null;
+let mapStickyPos={trackers:{},beacons:{}};
+const LIVE_STICKY_HOLD_MS=45000;
+let lastGoodAggregate=null;
+let lastGoodAggregateAt=0;
+let activeBeaconPopupMac=null;
+let ignorePopupClose=false;
+let legendCtl=null;
+let legendVisible=true;
+
+function renderAggregateMap(d){
+  const strictLive=true;
+  const mapDiv=document.getElementById("live-map");
+  if(!mapDiv || typeof L==='undefined') return;
+  if(!map){
+    map=L.map("live-map",{zoomControl:true}).setView([32.1,34.9],10);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+    mapLayer=L.layerGroup().addTo(map);
+    markerGroups.trackers=L.layerGroup().addTo(map);
+    markerGroups.beacons=L.layerGroup().addTo(map);
+    legendCtl=L.control({position:'bottomright'});
+    legendCtl.onAdd=function(){
+      const div=L.DomUtil.create('div','map-legend');
+      div.innerHTML=
+        '<div class="row"><span class="swatch" style="background:#3fb950"></span>Direct</div>'+
+        '<div class="row"><span class="swatch" style="background:#58a6ff"></span>Navixy</div>'+
+        '<div class="row"><span class="swatch" style="background:#a371f7"></span>Combined</div>'+
+        '<div class="row"><span class="swatch" style="background:#e3b341"></span>Attached sync</div>'+
+        '<div class="row"><span class="swatch" style="background:#f85149"></span>Towed sync</div>'+
+        '<div class="row"><span class="shape shape-square"></span> Equipment</div>'+
+        '<div class="row"><span class="shape shape-diamond"></span> Towed Device</div>'+
+        '<div class="row"><span class="shape shape-star">\u2605</span> Safety</div>';
+      L.DomEvent.disableClickPropagation(div);
+      return div;
+    };
+    legendCtl.addTo(map);
+  }
+  ignorePopupClose=true;
+  mapLayer.clearLayers();
+  markerGroups.trackers.clearLayers();
+  markerGroups.beacons.clearLayers();
+  const ag=d.map_aggregate||{};
+  const tr=ag.trackers||[];
+  const bc=ag.beacons||[];
+  latestAggregate=ag;
+  const pts=[];
+  const beaconMarkerByMac={};
+  const beaconPointSeen={};
+  const beaconPointCount={};
+  function spreadPoint(lat,lon,key){
+    const idx=(beaconPointSeen[key]||0);
+    const total=(beaconPointCount[key]||1);
+    beaconPointSeen[key]=idx+1;
+    if(total<=1) return [lat,lon];
+    const angle=((360/Math.max(2,total))*idx)%360;
+    let baseM=18;
+    const z=(map&&typeof map.getZoom==='function')?map.getZoom():13;
+    if(z<=9) baseM=70;
+    else if(z<=11) baseM=48;
+    else if(z<=13) baseM=30;
+    else if(z<=15) baseM=24;
+    else baseM=14;
+    const zoomSpreadFactor=Math.max(0.7, Math.min(1.8, 1 + ((13 - z) * 0.05)));
+    const radiusM=(baseM*zoomSpreadFactor) + (Math.floor(idx/6)*Math.max(6,Math.round((baseM*zoomSpreadFactor)*0.35)));
+    const dLat=(radiusM/111111.0);
+    const dLon=(radiusM/(111111.0*Math.max(0.2,Math.cos((lat*Math.PI)/180.0))));
+    const r=(angle*Math.PI)/180.0;
+    return [lat + (Math.sin(r)*dLat), lon + (Math.cos(r)*dLon)];
+  }
+  const trackersOn=document.getElementById("map-trackers-toggle").checked;
+  const beaconsOn=document.getElementById("map-beacons-toggle").checked;
+  let visibleTrackers=0;
+  let visibleBeacons=0;
+  tr.forEach(t=>{
+    let tLat=t.lat, tLon=t.lon;
+    const tKey=String(t.imei||'');
+    if(tLat==null||tLon==null){
+      const s=mapStickyPos.trackers[tKey];
+      if(s && (Date.now() - (s.seenAt||0) <= LIVE_STICKY_HOLD_MS)){
+        tLat=s.lat; tLon=s.lon;
+      }
+    }else{
+      mapStickyPos.trackers[tKey]={lat:tLat, lon:tLon, seenAt:Date.now()};
+    }
+    if(tLat==null||tLon==null) return;
+    if(!trackersOn) return;
+    const heading=(t.heading!=null)?Number(t.heading):0;
+    const markerHtml='<div style="position:relative;width:24px;height:24px">'+
+      '<div style="position:absolute;left:1px;top:3px;width:22px;height:16px;border-radius:8px;background:'+sourceColor(t.source)+';border:2px solid #0d1117;color:#fff;font-weight:700;font-size:10px;line-height:12px;text-align:center">'+sourceIconGlyph(t.source)+'</div>'+
+      '<div style="position:absolute;left:9px;top:-1px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:8px solid '+sourceColor(t.source)+';transform:rotate('+heading+'deg);transform-origin:50% 14px"></div>'+
+      '</div>';
+    const icon=L.divIcon({html:markerHtml,className:'',iconSize:[24,24],iconAnchor:[12,12]});
+    const m=L.marker([tLat,tLon],{icon:icon}).addTo(markerGroups.trackers);
+    m.bindPopup(
+      "<b>"+esc(t.name)+"</b><br>IMEI: "+esc(t.imei)+
+      "<br>Speed: "+esc(t.speed)+" km/h<br>Heading: "+esc(t.heading)+"&deg;<br>State: "+esc(t.state)+
+      "<br>Source: "+esc(t.source)+"<br>Confidence: "+computeConfidence(t.source,t.speed)+
+      "<br>Chosen reason: "+esc(sourceReasonText(t.chosen_source_reason))+
+      ((t.freshness_gap_sec!=null)?("<br>Freshness gap: "+esc(t.freshness_gap_sec)+" sec"):"")+
+      ((t.position_conflict&&t.position_conflict_m!=null)?("<br><span style='color:#f85149'>Position conflict: "+esc(t.position_conflict_m)+" m</span>"):"")+
+      "<br>TS (chosen): "+esc(t.chosen_ts)+
+      "<br>TS (other): "+esc(t.other_source_ts)+
+      "<br>TS (active): "+esc(t.ts_str)+
+      "<br>Navixy TS: "+esc(t.navixy_ts_str)+
+      "<br>Last update: "+esc(t.display_last_update)
+    );
+    pts.push([tLat,tLon]);
+    visibleTrackers += 1;
+  });
+  const visibleBeaconRows=[];
+  bc.forEach(b=>{
+    const bLifecycle=String(b.lifecycle_state||'');
+    let bLat=b.lat, bLon=b.lon;
+    const bKey=String(b.mac||'').toUpperCase();
+    const isDropped=bLifecycle.includes('DROPPED');
+    if(bLat==null||bLon==null){
+      const s=mapStickyPos.beacons[bKey];
+      if(s){
+        const stickyOk = isDropped || (Date.now() - (s.seenAt||0) <= LIVE_STICKY_HOLD_MS);
+        if(stickyOk){ bLat=s.lat; bLon=s.lon; }
+      }
+    }else{
+      mapStickyPos.beacons[bKey]={lat:bLat, lon:bLon, seenAt:Date.now(), lifecycle:bLifecycle};
+    }
+    if(bLat==null||bLon==null) return;
+    if(!beaconsOn) return;
+    visibleBeaconRows.push({b:b, bLat:Number(bLat), bLon:Number(bLon), bLifecycle:bLifecycle});
+  });
+  visibleBeaconRows.forEach(row=>{
+    const k=(Number(row.bLat).toFixed(6)+','+Number(row.bLon).toFixed(6));
+    beaconPointCount[k]=(beaconPointCount[k]||0)+1;
+  });
+  visibleBeaconRows.forEach(row=>{
+    const b=row.b;
+    const bLat=row.bLat;
+    const bLon=row.bLon;
+    const bLifecycle=row.bLifecycle;
+    const k=(Number(bLat).toFixed(6)+','+Number(bLon).toFixed(6));
+    const pxy=spreadPoint(bLat,bLon,k);
+    const cat=categoryStyle(b.category);
+    const icon=L.divIcon({
+      html:'<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center">'+beaconShapeHtml(b.category)+'</div>',
+      className:'',
+      iconSize:[22,22],
+      iconAnchor:[11,11]
+    });
+    const isDropped=bLifecycle.includes('DROPPED');
+    const c=L.marker([pxy[0],pxy[1]],{icon:icon,opacity:(isDropped?0.75:1.0),zIndexOffset:(isDropped?-100:0)}).addTo(markerGroups.beacons);
+    beaconMarkerByMac[String(b.mac||'').toUpperCase()] = c;
+    c.bindPopup(
+      "<div class='beacon-popup'><div class='card'>"+
+      "<div class='head "+popupHeadClass(b.category)+"'>"+esc(b.label)+" <span class='cat'>"+esc(b.category||'Uncategorized')+"</span></div>"+
+      "<div class='body'>"+
+      "<div class='sec'>Stationery Device Information</div>"+
+      "<div class='kv'>"+
+      "<div class='k'>Type</div><div>Eye Beacon</div>"+
+      "<div class='k'>MAC</div><div>"+esc(b.mac)+"</div>"+
+      "<div class='k'>Battery</div><div>"+esc(b.battery_mv!=null?(b.battery_mv+' mV'):'N/A (not reported)')+"</div>"+
+      "<div class='k'>Lat / Long</div><div>"+esc((b.lat!=null&&b.lon!=null)?(Number(b.lat).toFixed(6)+', '+Number(b.lon).toFixed(6)):'\u2014')+"</div>"+
+      "</div>"+
+      "<div class='sec'>BLE Position Info</div>"+
+      "<div class='kv'>"+
+      "<div class='k'>Last set by</div><div>"+esc(b.last_seen_name)+"</div>"+
+      "<div class='k'>Last seen</div><div>"+esc(b.last_seen_ts)+"</div>"+
+      "<div class='k'>Lifecycle</div><div>"+esc(b.lifecycle_state||'\u2014')+"</div>"+
+      "</div>"+
+      (String(b.lifecycle_state||'').includes('DROPPED')?("<div class='warn'>DROPPED IN FIELD</div><div class='kv'><div class='k'>Dropped at</div><div>"+esc(b.drop_ts)+"</div><div class='k'>Dropped by</div><div>"+esc(b.last_seen_name||b.drop_by)+"</div></div>"):"")+
+      "<div class='actions'><span class='btn'>Update Drop Here</span><span class='btn'>Pick On Map</span><span class='btn'>Re-attach</span></div>"+
+      "</div></div></div>",
+      {offset:L.point(0, -28), maxWidth:360, autoPanPaddingTopLeft:L.point(30, 30), autoPanPaddingBottomRight:L.point(30, 30)}
+    );
+    c.on('popupopen', ()=>{ activeBeaconPopupMac = String(b.mac||'').toUpperCase(); });
+    c.on('popupclose', ()=>{
+      if(!ignorePopupClose && activeBeaconPopupMac === String(b.mac||'').toUpperCase()){
+        activeBeaconPopupMac = null;
+      }
+    });
+    pts.push([pxy[0],pxy[1]]);
+    visibleBeacons += 1;
+  });
+  const hudT=document.getElementById('hud-trackers');
+  const hudB=document.getElementById('hud-beacons');
+  const hudS=document.getElementById('hud-source');
+  if(hudT) hudT.textContent='Trackers: '+visibleTrackers;
+  if(hudB) hudB.textContent='Beacons: '+visibleBeacons;
+  if(hudS) hudS.textContent='Source: aggregate';
+  if(pts.length){
+    const bounds=L.latLngBounds(pts);
+    if(!mapInit){
+      map.fitBounds(bounds.pad(0.25));
+      mapInit=true;
+    }
+  }
+  if(activeBeaconPopupMac && beaconMarkerByMac[activeBeaconPopupMac]){
+    beaconMarkerByMac[activeBeaconPopupMac].openPopup();
+  }
+  ignorePopupClose=false;
+}
+
+function mapFitBounds(){
+  if(!map || !latestAggregate) return;
+  const pts=[];
+  (latestAggregate.trackers||[]).forEach(t=>{ if(t.lat!=null&&t.lon!=null) pts.push([t.lat,t.lon]); });
+  (latestAggregate.beacons||[]).forEach(b=>{ if(b.lat!=null&&b.lon!=null) pts.push([b.lat,b.lon]); });
+  if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.25));
+}
+function mapCenterSkoda(){
+  if(!map || !latestAggregate) return;
+  const s=(latestAggregate.trackers||[]).find(x=>String(x.imei)==='864275078490847' || String(x.name).toLowerCase().includes('skoda'));
+  if(s && s.lat!=null && s.lon!=null){
+    map.setView([s.lat,s.lon],14);
+  }
+}
+
+let errCount=0;
+async function refresh(){
+  const bar=document.getElementById("status-bar");
+  try{
+    const resp=await fetch(API_STATE, {
+      headers: {"ngrok-skip-browser-warning":"1"},
+      cache: "no-store"
+    });
+    if(!resp.ok) throw new Error("HTTP "+resp.status);
+    const d=await resp.json();
+    const agg=d.map_aggregate||{};
+    let renderAggregate=agg;
+    const now=Date.now();
+    const nowCount=((agg.trackers||[]).length + (agg.beacons||[]).length);
+    if(nowCount>0){
+      lastGoodAggregate=agg;
+      lastGoodAggregateAt=now;
+    }else if(lastGoodAggregate && (now - lastGoodAggregateAt) <= LIVE_STICKY_HOLD_MS){
+      renderAggregate=lastGoodAggregate;
+    }
+    renderAggregateMap({map_aggregate:renderAggregate});
+    errCount=0;
+    bar.className="status-bar";
+    bar.textContent="Last updated: "+new Date().toLocaleTimeString();
+  }catch(e){
+    errCount++;
+    bar.className="status-bar error";
+    bar.textContent="Connection error ("+errCount+"): "+e.message;
+  }
+}
+
+refresh();
+setInterval(refresh,2000);
+document.getElementById("map-fit-btn").addEventListener("click", mapFitBounds);
+document.getElementById("map-skoda-btn").addEventListener("click", mapCenterSkoda);
+document.getElementById("map-legend-btn").addEventListener("click", ()=>{
+  if(!legendCtl || !map) return;
+  if(legendVisible){
+    map.removeControl(legendCtl);
+    legendVisible=false;
+    document.getElementById("map-legend-btn").textContent='Show Legend';
+  }else{
+    legendCtl.addTo(map);
+    legendVisible=true;
+    document.getElementById("map-legend-btn").textContent='Hide Legend';
+  }
+});
+document.getElementById("map-trackers-toggle").addEventListener("change", ()=>{ if(latestAggregate) renderAggregateMap({map_aggregate:latestAggregate}); });
+document.getElementById("map-beacons-toggle").addEventListener("change", ()=>{ if(latestAggregate) renderAggregateMap({map_aggregate:latestAggregate}); });
+</script>
+</body>
+</html>
