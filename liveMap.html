@@ -99,6 +99,10 @@ let API_STATE = API_BASE + "/liveMap/api/state";
   } catch(e) { /* use defaults */ }
 })();
 
+function apiUrl(){
+  return API_STATE + (API_STATE.includes("?") ? "&" : "?") + "ngrok-skip-browser-warning=1&_t=" + Date.now();
+}
+
 function esc(s){
   if(s==null) return "\u2014";
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
@@ -383,15 +387,23 @@ function mapCenterSkoda(){
 }
 
 let errCount=0;
+let ngrokWarningShown=false;
 async function refresh(){
   const bar=document.getElementById("status-bar");
   try{
-    const resp=await fetch(API_STATE, {
-      headers: {"ngrok-skip-browser-warning":"1"},
-      cache: "no-store"
-    });
+    const resp=await fetch(apiUrl());
     if(!resp.ok) throw new Error("HTTP "+resp.status);
+    const ct=resp.headers.get("content-type")||"";
+    if(ct.includes("text/html")){
+      if(!ngrokWarningShown){
+        ngrokWarningShown=true;
+        bar.className="status-bar error";
+        bar.innerHTML='Ngrok requires verification. <a href="'+API_BASE+'/liveMap/" target="_blank" style="color:#58a6ff;text-decoration:underline">Click here</a>, then refresh this page.';
+      }
+      return;
+    }
     const d=await resp.json();
+    ngrokWarningShown=false;
     const agg=d.map_aggregate||{};
     let renderAggregate=agg;
     const now=Date.now();
