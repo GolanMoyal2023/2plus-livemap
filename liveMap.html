@@ -61,6 +61,8 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif}
 .gse-popup .gse-led.moving{background:#22c55e;box-shadow:0 0 6px #22c55e}
 .gse-popup .gse-led.stopped{background:#f59e0b;box-shadow:0 0 6px #f59e0b}
 .gse-popup .gse-led.stale{background:#ef4444;box-shadow:0 0 6px #ef4444}
+.gse-popup .gse-thumb{width:36px;height:36px;object-fit:contain;border-radius:4px;background:#0f172a;padding:2px;flex-shrink:0}
+.gse-popup .gse-gsenum{font-size:.72rem;font-weight:600;color:#38bdf8;margin-left:4px}
 .gse-popup .gse-name{font-weight:700;font-size:.92rem;flex:1}
 .gse-popup .gse-badge{font-size:.62rem;padding:2px 8px;border-radius:999px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .gse-popup .gse-badge.direct{background:#166534;color:#bbf7d0}
@@ -71,7 +73,7 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif}
 .gse-popup .gse-sec-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#475569}
 .gse-popup .gse-sec-ts{font-size:.58rem;font-family:'Courier New',monospace;color:#94a3b8}
 .gse-popup .gse-body{padding:5px 14px 8px}
-.gse-popup .gse-kv{display:grid;grid-template-columns:90px 1fr;gap:2px 8px;font-size:.76rem}
+.gse-popup .gse-kv{display:grid;grid-template-columns:100px 1fr;gap:2px 8px;font-size:.76rem}
 .gse-popup .gse-k{color:#64748b;font-size:.68rem;padding-top:1px}
 .gse-popup .gse-v{font-weight:600;font-family:'Courier New',monospace;font-size:.74rem}
 .gse-popup .gse-v.on{color:#16a34a}
@@ -337,20 +339,25 @@ function renderAggregateMap(d){
     const _odoNote=(t.total_odo_m!=null)?'':'(CAN not configured)';
     const _towStat=esc(t.tow_status||'Not Towing');
     const _towCls=(t.tow_status&&t.tow_status.startsWith('Towing'))?'towing':'idle';
+    const _gseNum=t.gse_number||'';
+    const _imgUrl=t.image||'';
+    const _thumbHtml=_imgUrl?'<img class="gse-thumb" src="'+esc(_imgUrl)+'" alt="">':'';
+    const _engH='--';
     const _dTs=_fts(t.direct_ts_str);
     const _nTs=_fts(t.navixy_ts_str);
     const _conf=computeConfidence(t.source,t.speed);
     const _gap=(t.freshness_gap_sec!=null)?esc(t.freshness_gap_sec)+' sec':'--';
     m.bindPopup(
       '<div class="gse-popup"><div class="gse-card">'+
-      '<div class="gse-hdr"><span class="gse-led '+_ledCls+'"></span>'+
-      '<span class="gse-name">'+esc(t.name)+'</span>'+
+      '<div class="gse-hdr">'+_thumbHtml+'<span class="gse-led '+_ledCls+'"></span>'+
+      '<span class="gse-name">'+esc(t.name)+(_gseNum?' <span class="gse-gsenum">#'+esc(_gseNum)+'</span>':'')+'</span>'+
       '<span class="gse-badge '+_srcCls+'">'+_srcBadge+'</span></div>'+
       '<div class="gse-imei">IMEI: '+esc(t.imei)+'</div>'+
       '<div class="gse-sec"><span class="gse-sec-label">Classification</span></div>'+
       '<div class="gse-body"><div class="gse-kv">'+
       '<span class="gse-k">Category</span><span class="gse-v">'+esc(t.category||'--')+'</span>'+
       '<span class="gse-k">Sub-Category</span><span class="gse-v">'+esc(t.sub_category||'--')+'</span>'+
+      '<span class="gse-k">GSE Number</span><span class="gse-v">'+(_gseNum?esc(_gseNum):'--')+'</span>'+
       '</div></div>'+
       '<div class="gse-sec"><span class="gse-sec-label">Position</span><span class="gse-sec-ts">ts: '+_fts(t.chosen_ts)+'</span></div>'+
       '<div class="gse-body"><div class="gse-kv">'+
@@ -368,11 +375,12 @@ function renderAggregateMap(d){
       '<span class="gse-k">Navixy</span><span class="gse-v">'+_nTs+'</span>'+
       '<span class="gse-k">Gap</span><span class="gse-v">'+_gap+'</span>'+
       '</div></div>'+
-      '<div class="gse-sec"><span class="gse-sec-label">CAN Bus / AVL I/O</span><span class="gse-sec-ts">ts: '+_dTs+'</span></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">CAN Bus / Sensors</span><span class="gse-sec-ts">ts: '+_dTs+'</span></div>'+
       '<div class="gse-body"><div class="gse-kv">'+
       '<span class="gse-k">Ignition</span><span class="gse-v '+_ignCls+'">'+_ign+'</span>'+
       '<span class="gse-k">Ext Power</span><span class="gse-v">'+_extV+'</span>'+
       '<span class="gse-k">Battery</span><span class="gse-v">'+_battV+'</span>'+
+      '<span class="gse-k">Engine Hours</span><span class="gse-v na">'+_engH+'</span>'+
       '</div></div>'+
       '<div class="gse-sec"><span class="gse-sec-label">Fuel</span><span class="gse-sec-ts">ts: '+(t.fuel_level!=null?_dTs:'--')+'</span></div>'+
       '<div class="gse-body"><div class="gse-kv">'+
@@ -381,6 +389,10 @@ function renderAggregateMap(d){
       '<div class="gse-sec"><span class="gse-sec-label">Odometer (ODM)</span><span class="gse-sec-ts">ts: '+(t.total_odo_m!=null?_dTs:'--')+'</span></div>'+
       '<div class="gse-body"><div class="gse-kv">'+
       '<span class="gse-k">Reading</span><span class="gse-v'+(t.total_odo_m==null?' na':'')+'">'+ _odoKm+(_odoNote?' <span class="gse-fts">'+_odoNote+'</span>':'')+'</span>'+
+      '</div></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">Next Service</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Scheduled</span><span class="gse-v na">--</span>'+
       '</div></div>'+
       '<div class="gse-tow '+_towCls+'">Tow: '+_towStat+'</div>'+
       '</div></div>', {maxWidth:400,autoClose:false,closeOnClick:false}
