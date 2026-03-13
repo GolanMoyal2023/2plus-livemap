@@ -99,9 +99,11 @@ let API_STATE = API_BASE + "/liveMap/api/state";
   } catch(e) { /* use defaults */ }
 })();
 
-function apiUrl(){
-  return API_STATE + (API_STATE.includes("?") ? "&" : "?") + "ngrok-skip-browser-warning=1&_t=" + Date.now();
-}
+const FETCH_OPTS = {
+  headers: {"ngrok-skip-browser-warning":"1","Accept":"application/json"},
+  cache: "no-store",
+  mode: "cors"
+};
 
 function esc(s){
   if(s==null) return "\u2014";
@@ -391,12 +393,10 @@ let dataLoaded=false;
 async function refresh(){
   const bar=document.getElementById("status-bar");
   try{
-    const resp=await fetch(apiUrl());
+    const resp=await fetch(API_STATE, FETCH_OPTS);
     if(!resp.ok) throw new Error("HTTP "+resp.status);
     const txt=await resp.text();
-    if(txt.trim().charAt(0)!=='{'){
-      throw new Error("Non-JSON response (ngrok interstitial)");
-    }
+    if(txt.trim().charAt(0)!=='{') throw new Error("Non-JSON response");
     const d=JSON.parse(txt);
     dataLoaded=true;
     const agg=d.map_aggregate||{};
@@ -412,20 +412,20 @@ async function refresh(){
     renderAggregateMap({map_aggregate:renderAggregate});
     errCount=0;
     bar.className="status-bar";
-    bar.textContent="Last updated: "+new Date().toLocaleTimeString();
+    bar.textContent="Live \u2022 "+new Date().toLocaleTimeString();
   }catch(e){
     errCount++;
     bar.className="status-bar error";
     if(!dataLoaded && errCount>=3){
-      bar.innerHTML='Cannot reach data server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>, then come back.';
+      bar.innerHTML='Cannot reach server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>, then come back.';
     }else{
-      bar.textContent="Connecting... ("+errCount+")";
+      bar.textContent="Retry ("+errCount+")... "+e.message;
     }
   }
 }
 
 refresh();
-setInterval(refresh,2000);
+setInterval(refresh,3000);
 document.getElementById("map-fit-btn").addEventListener("click", mapFitBounds);
 document.getElementById("map-skoda-btn").addEventListener("click", mapCenterSkoda);
 document.getElementById("map-legend-btn").addEventListener("click", ()=>{
