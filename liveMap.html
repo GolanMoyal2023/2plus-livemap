@@ -87,7 +87,10 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 let API_BASE = "https://2plusnavixy.ngrok.app";
+let API_FALLBACK = "https://beacons2plus.loca.lt";
 let API_STATE = API_BASE + "/liveMap/api/state";
+let API_STATE_FB = API_FALLBACK + "/liveMap/api/state";
+let configLoaded = false;
 
 (async function loadConfig(){
   try {
@@ -96,12 +99,15 @@ let API_STATE = API_BASE + "/liveMap/api/state";
       API_BASE = cfg.api_base.replace(/\/+$/, "");
       API_STATE = API_BASE + "/liveMap/api/state";
     }
+    if (cfg.api_fallback) {
+      API_FALLBACK = cfg.api_fallback.replace(/\/+$/, "");
+      API_STATE_FB = API_FALLBACK + "/liveMap/api/state";
+    }
   } catch(e) { /* use defaults */ }
+  configLoaded = true;
 })();
 
-let jsonpCounter=0;
-const CORS_PROXIES=["https://api.allorigins.win/raw?url=","https://corsproxy.io/?url="];
-let useProxy=-1;
+let useFallback = false;
 
 function esc(s){
   if(s==null) return "\u2014";
@@ -393,13 +399,11 @@ function mapCenterSkoda(){
 
 let errCount=0;
 let dataLoaded=false;
-let jsonpFails=0;
 
-function processState(d){
+function processState(d, via){
   const bar=document.getElementById("status-bar");
   dataLoaded=true;
   errCount=0;
-  jsonpFails=0;
   const agg=d.map_aggregate||{};
   let renderAggregate=agg;
   const now=Date.now();
@@ -412,69 +416,52 @@ function processState(d){
   }
   renderAggregateMap({map_aggregate:renderAggregate});
   bar.className="status-bar";
-  const mode=(useProxy>=0)?"proxy":"direct";
-  bar.textContent="Live ("+mode+") \u2022 "+new Date().toLocaleTimeString();
+  bar.textContent="Live ("+via+") \u2022 "+new Date().toLocaleTimeString();
 }
 
-function handleJsonpData(d){ processState(d); }
+function handleJsonpData(d){ processState(d, "ngrok"); }
 
-async function fetchViaProxy(){
-  const bar=document.getElementById("status-bar");
-  for(let i=0;i<CORS_PROXIES.length;i++){
-    const pi=(useProxy>=0)?useProxy:i;
-    const proxyUrl=CORS_PROXIES[pi%CORS_PROXIES.length]+encodeURIComponent(API_STATE);
-    try{
-      const resp=await fetch(proxyUrl,{headers:{"Accept":"application/json"}});
-      if(!resp.ok) continue;
-      const d=await resp.json();
-      if(d&&d.map_aggregate){ useProxy=pi%CORS_PROXIES.length; processState(d); return true; }
-    }catch(e){ /* try next */ }
-    if(useProxy>=0) break;
-  }
-  return false;
+async function tryFetch(url, bypassHeader){
+  try{
+    const resp=await fetch(url, {
+      headers: {"Accept":"application/json", [bypassHeader]:"1"},
+      mode:"cors", cache:"no-store"
+    });
+    if(!resp.ok) return null;
+    const txt=await resp.text();
+    if(txt.trim().charAt(0)!=='{') return null;
+    return JSON.parse(txt);
+  }catch(e){ return null; }
 }
 
 async function refresh(){
+  if(!configLoaded) return;
   const bar=document.getElementById("status-bar");
-  if(useProxy>=0){
-    const ok=await fetchViaProxy();
-    if(!ok){
-      errCount++;
-      bar.className="status-bar error";
-      bar.textContent="Proxy retry ("+errCount+")...";
-    }
+
+  if(useFallback){
+    const d=await tryFetch(API_STATE_FB, "Bypass-Tunnel-Reminder");
+    if(d&&d.map_aggregate){ processState(d,"tunnel"); return; }
+    const d2=await tryFetch(API_STATE, "ngrok-skip-browser-warning");
+    if(d2&&d2.map_aggregate){ useFallback=false; processState(d2,"ngrok"); return; }
+    errCount++;
+    bar.className="status-bar error";
+    bar.textContent="Retry ("+errCount+")...";
     return;
   }
-  const scriptId="jsonp-loader";
-  const old=document.getElementById(scriptId);
-  if(old) old.remove();
-  const s=document.createElement("script");
-  s.id=scriptId;
-  s.src=API_STATE+"?callback=handleJsonpData&_t="+Date.now();
-  let handled=false;
-  const origHandler=window.handleJsonpData;
-  window.handleJsonpData=function(d){ handled=true; processState(d); };
-  s.onerror=async function(){
-    jsonpFails++;
-    errCount++;
-    s.remove();
-    if(jsonpFails>=3){
-      bar.className="status-bar";
-      bar.textContent="Trying proxy...";
-      const ok=await fetchViaProxy();
-      if(!ok){
-        bar.className="status-bar error";
-        bar.innerHTML='Cannot reach server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>';
-      }
-    }else{
-      bar.className="status-bar error";
-      bar.textContent="Connecting ("+errCount+")...";
-    }
-  };
-  setTimeout(function(){
-    if(!handled&&s.parentNode){ s.remove(); s.onerror&&s.onerror(); }
-  },8000);
-  document.head.appendChild(s);
+
+  const d=await tryFetch(API_STATE, "ngrok-skip-browser-warning");
+  if(d&&d.map_aggregate){ processState(d,"ngrok"); return; }
+
+  const d2=await tryFetch(API_STATE_FB, "Bypass-Tunnel-Reminder");
+  if(d2&&d2.map_aggregate){ useFallback=true; processState(d2,"tunnel"); return; }
+
+  errCount++;
+  bar.className="status-bar error";
+  if(!dataLoaded && errCount>=4){
+    bar.innerHTML='Cannot reach server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>';
+  }else{
+    bar.textContent="Connecting ("+errCount+")...";
+  }
 }
 
 refresh();

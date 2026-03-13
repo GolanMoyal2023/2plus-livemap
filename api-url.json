@@ -1,3 +1,4 @@
 {
-  "api_base": "https://2plusnavixy.ngrok.app"
+  "api_base": "https://2plusnavixy.ngrok.app",
+  "api_fallback": "https://beacons2plus.loca.lt"
 }
