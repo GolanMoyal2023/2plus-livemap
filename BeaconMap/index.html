@@ -285,6 +285,7 @@ const LIVE_STICKY_HOLD_MS=45000;
 let lastGoodAggregate=null;
 let lastGoodAggregateAt=0;
 let activeBeaconPopupMac=null;
+let activeTrackerPopupImei=null;
 let ignorePopupClose=false;
 let legendCtl=null;
 let legendVisible=true;
@@ -383,6 +384,7 @@ function renderAggregateMap(d){
   const bc=ag.beacons||[];
   latestAggregate=ag;
   const pts=[];
+  const trackerMarkerByImei={};
   const beaconMarkerByMac={};
   const beaconPointSeen={};
   const beaconPointCount={};
@@ -492,6 +494,13 @@ function renderAggregateMap(d){
       '<div class="gse-tow '+_towCls+'">Tow: '+_towStat+'</div>'+
       '</div></div>', {maxWidth:400,autoClose:false,closeOnClick:false}
     );
+    trackerMarkerByImei[String(t.imei||'')]=m;
+    m.on('popupopen', ()=>{ activeTrackerPopupImei=String(t.imei||''); });
+    m.on('popupclose', ()=>{
+      if(!ignorePopupClose && activeTrackerPopupImei===String(t.imei||'')){
+        activeTrackerPopupImei=null;
+      }
+    });
     pts.push([tLat,tLon]);
     visibleTrackers += 1;
   });
@@ -596,6 +605,9 @@ function renderAggregateMap(d){
       map.fitBounds(bounds.pad(0.25));
       mapInit=true;
     }
+  }
+  if(activeTrackerPopupImei && trackerMarkerByImei[activeTrackerPopupImei]){
+    trackerMarkerByImei[activeTrackerPopupImei].openPopup();
   }
   if(activeBeaconPopupMac && beaconMarkerByMac[activeBeaconPopupMac]){
     beaconMarkerByMac[activeBeaconPopupMac].openPopup();
