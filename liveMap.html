@@ -88,6 +88,7 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',sans-serif}
 <script>
 let API_BASE = "https://2plusnavixy.ngrok.app";
 let API_FALLBACK = "https://beacons2plus.loca.lt";
+let API_GIST = "https://gist.githubusercontent.com/GolanMoyal2023/8c421ecba6ec4dcd9b7b87c24dd723a1/raw/state.json";
 let API_STATE = API_BASE + "/liveMap/api/state";
 let API_STATE_FB = API_FALLBACK + "/liveMap/api/state";
 let configLoaded = false;
@@ -103,11 +104,12 @@ let configLoaded = false;
       API_FALLBACK = cfg.api_fallback.replace(/\/+$/, "");
       API_STATE_FB = API_FALLBACK + "/liveMap/api/state";
     }
+    if (cfg.api_gist) API_GIST = cfg.api_gist;
   } catch(e) { /* use defaults */ }
   configLoaded = true;
 })();
 
-let useFallback = false;
+let activeSource = "none";
 
 function esc(s){
   if(s==null) return "\u2014";
@@ -434,38 +436,46 @@ async function tryFetch(url, bypassHeader){
   }catch(e){ return null; }
 }
 
+async function tryGist(){
+  try{
+    const resp=await fetch(API_GIST+"?_t="+Date.now(), {cache:"no-store"});
+    if(!resp.ok) return null;
+    const d=await resp.json();
+    return (d&&d.map_aggregate)?d:null;
+  }catch(e){ return null; }
+}
+
+const SOURCES=[
+  {name:"ngrok",  fn:()=>tryFetch(API_STATE,"ngrok-skip-browser-warning")},
+  {name:"tunnel", fn:()=>tryFetch(API_STATE_FB,"Bypass-Tunnel-Reminder")},
+  {name:"gist",   fn:tryGist}
+];
+
 async function refresh(){
   if(!configLoaded) return;
   const bar=document.getElementById("status-bar");
 
-  if(useFallback){
-    const d=await tryFetch(API_STATE_FB, "Bypass-Tunnel-Reminder");
-    if(d&&d.map_aggregate){ processState(d,"tunnel"); return; }
-    const d2=await tryFetch(API_STATE, "ngrok-skip-browser-warning");
-    if(d2&&d2.map_aggregate){ useFallback=false; processState(d2,"ngrok"); return; }
-    errCount++;
-    bar.className="status-bar error";
-    bar.textContent="Retry ("+errCount+")...";
-    return;
+  if(activeSource!=="none"){
+    const src=SOURCES.find(s=>s.name===activeSource);
+    if(src){
+      const d=await src.fn();
+      if(d){ processState(d,src.name); return; }
+    }
+    activeSource="none";
   }
 
-  const d=await tryFetch(API_STATE, "ngrok-skip-browser-warning");
-  if(d&&d.map_aggregate){ processState(d,"ngrok"); return; }
-
-  const d2=await tryFetch(API_STATE_FB, "Bypass-Tunnel-Reminder");
-  if(d2&&d2.map_aggregate){ useFallback=true; processState(d2,"tunnel"); return; }
+  for(const src of SOURCES){
+    const d=await src.fn();
+    if(d){ activeSource=src.name; processState(d,src.name); return; }
+  }
 
   errCount++;
   bar.className="status-bar error";
-  if(!dataLoaded && errCount>=4){
-    bar.innerHTML='Cannot reach server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>';
-  }else{
-    bar.textContent="Connecting ("+errCount+")...";
-  }
+  bar.textContent="Connecting ("+errCount+")...";
 }
 
 refresh();
-setInterval(refresh,3000);
+setInterval(refresh,4000);
 document.getElementById("map-fit-btn").addEventListener("click", mapFitBounds);
 document.getElementById("map-skoda-btn").addEventListener("click", mapCenterSkoda);
 document.getElementById("map-legend-btn").addEventListener("click", ()=>{

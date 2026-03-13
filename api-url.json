@@ -1,4 +1,5 @@
 {
   "api_base": "https://2plusnavixy.ngrok.app",
-  "api_fallback": "https://beacons2plus.loca.lt"
+  "api_fallback": "https://beacons2plus.loca.lt",
+  "api_gist": "https://gist.githubusercontent.com/GolanMoyal2023/8c421ecba6ec4dcd9b7b87c24dd723a1/raw/state.json"
 }
