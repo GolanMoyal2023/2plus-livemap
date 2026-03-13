@@ -1,12 +1,1 @@
-﻿<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>API State</title>
-<script>
-fetch("../../api-url.json",{cache:"no-store"}).then(r=>r.json()).then(cfg=>{
-  var gist=cfg.api_gist||"https://gist.githubusercontent.com/GolanMoyal2023/8c421ecba6ec4dcd9b7b87c24dd723a1/raw/state.json";
-  return fetch(gist+"?_t="+Date.now(),{cache:"no-store"});
-}).then(r=>r.json()).then(d=>{
-  document.getElementById("out").textContent=JSON.stringify(d,null,2);
-}).catch(e=>{document.getElementById("out").textContent="Error: "+e.message;});
-</script>
-<style>body{background:#0d1117;color:#e6edf3;font-family:monospace;padding:16px}pre{white-space:pre-wrap;word-break:break-all}</style>
-</head><body><pre id="out">Loading state...</pre></body></html>
+﻿<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=https://gist.githubusercontent.com/GolanMoyal2023/8c421ecba6ec4dcd9b7b87c24dd723a1/raw/state.json"></head><body>Redirecting to <a href="https://gist.githubusercontent.com/GolanMoyal2023/8c421ecba6ec4dcd9b7b87c24dd723a1/raw/state.json">state.json</a></body></html>
