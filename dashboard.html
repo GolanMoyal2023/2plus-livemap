@@ -45,6 +45,16 @@ tr:hover td{background:#1c2128}
   .beacon-popup .warn{margin-top:6px;font-size:.72rem}
   .beacon-popup .actions{gap:4px;margin-top:6px}
   .beacon-popup .btn{font-size:.64rem;padding:3px 6px;border-radius:5px}
+  .gse-popup{min-width:220px;max-width:300px}
+  .gse-popup .gse-hdr{padding:7px 10px;gap:6px}
+  .gse-popup .gse-name{font-size:.82rem}
+  .gse-popup .gse-imei{padding:0 10px 6px;font-size:.62rem}
+  .gse-popup .gse-sec{padding:4px 10px 3px}
+  .gse-popup .gse-body{padding:4px 10px 6px}
+  .gse-popup .gse-kv{grid-template-columns:72px 1fr;gap:2px 6px;font-size:.7rem}
+  .gse-popup .gse-k{font-size:.62rem}
+  .gse-popup .gse-v{font-size:.66rem}
+  .gse-popup .gse-tow{margin:0 10px 6px;font-size:.66rem}
 }
 @media(min-width:769px){.scroll-hint{display:none}}
 .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.71rem;font-weight:600}
@@ -97,6 +107,36 @@ tr:hover td{background:#1c2128}
 .shape-star{color:#f97316;font-size:17px;line-height:14px}
 .shape-circle{width:14px;height:14px;background:#f97316;border:2px solid #fff;border-radius:50%}
 .shape-hex{width:14px;height:14px;background:#8b5cf6;border:2px solid #fff;clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%)}
+.gse-popup{min-width:310px;max-width:380px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;line-height:1.3;color:#0f172a}
+.gse-popup *{box-sizing:border-box}
+.gse-popup .gse-card{background:#fff;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.25);overflow:hidden;border:1px solid #cbd5e1}
+.gse-popup .gse-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#1e293b;color:#f1f5f9}
+.gse-popup .gse-led{width:10px;height:10px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.3)}
+.gse-popup .gse-led.moving{background:#22c55e;box-shadow:0 0 6px #22c55e}
+.gse-popup .gse-led.stopped{background:#f59e0b;box-shadow:0 0 6px #f59e0b}
+.gse-popup .gse-led.stale{background:#ef4444;box-shadow:0 0 6px #ef4444}
+.gse-popup .gse-name{font-weight:700;font-size:.92rem;flex:1}
+.gse-popup .gse-badge{font-size:.62rem;padding:2px 8px;border-radius:999px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.gse-popup .gse-badge.direct{background:#166534;color:#bbf7d0}
+.gse-popup .gse-badge.navixy{background:#1e40af;color:#bfdbfe}
+.gse-popup .gse-badge.combined{background:#6d28d9;color:#ddd6fe}
+.gse-popup .gse-imei{padding:0 14px 8px;font-size:.7rem;color:#94a3b8;background:#1e293b;font-family:'Courier New',monospace;letter-spacing:.5px}
+.gse-popup .gse-sec{display:flex;justify-content:space-between;align-items:center;padding:6px 14px 4px;border-bottom:1px solid #e2e8f0;background:#f8fafc}
+.gse-popup .gse-sec-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#475569}
+.gse-popup .gse-sec-ts{font-size:.58rem;font-family:'Courier New',monospace;color:#94a3b8}
+.gse-popup .gse-body{padding:5px 14px 8px}
+.gse-popup .gse-kv{display:grid;grid-template-columns:90px 1fr;gap:2px 8px;font-size:.76rem}
+.gse-popup .gse-k{color:#64748b;font-size:.68rem;padding-top:1px}
+.gse-popup .gse-v{font-weight:600;font-family:'Courier New',monospace;font-size:.74rem}
+.gse-popup .gse-v.on{color:#16a34a}
+.gse-popup .gse-v.off{color:#dc2626}
+.gse-popup .gse-v.na{color:#94a3b8;font-weight:400;font-style:italic}
+.gse-popup .gse-v .gse-fts{font-size:.56rem;color:#94a3b8;font-weight:400;margin-left:4px;font-style:normal}
+.gse-popup .gse-conflict{margin:4px 14px 6px;padding:4px 8px;background:#fef2f2;border:1px solid #fecaca;border-radius:4px;font-size:.7rem;color:#dc2626;font-weight:600}
+.gse-popup .gse-tow{margin:0 14px 8px;padding:5px 8px;border-radius:4px;font-size:.72rem;font-weight:600}
+.gse-popup .gse-tow.towing{background:#fef3c7;border:1px solid #fde68a;color:#92400e}
+.gse-popup .gse-tow.idle{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+.leaflet-popup-content .gse-popup{margin:-4px -6px}
 .livemap-hud{display:none;position:absolute;right:14px;top:14px;z-index:800;background:rgba(13,17,23,.88);border:1px solid #30363d;border-radius:10px;padding:8px 10px;font-size:.76rem;color:#c9d1d9;backdrop-filter:blur(2px)}
 .livemap-hud .chip{display:inline-block;margin:0 6px 0 0;padding:3px 8px;border-radius:999px;border:1px solid #30363d;background:#161b22}
 .livemap-hud .title{display:block;color:#8b949e;font-size:.68rem;margin-bottom:6px}
@@ -400,18 +440,67 @@ function renderAggregateMap(d){
       '</div>';
     const icon=L.divIcon({html:markerHtml,className:'',iconSize:[24,24],iconAnchor:[12,12]});
     const m=L.marker([tLat,tLon],{icon:icon}).addTo(markerGroups.trackers);
+    const _ledCls=t.is_stale?'stale':(Number(t.speed||0)>1?'moving':'stopped');
+    const _srcBadge=esc(t.source||'--');
+    const _srcCls=(t.source==='direct'?'direct':(t.source==='navixy'?'navixy':'combined'));
+    const _fts=function(v){if(!v) return '--'; return esc(v);};
+    const _ign=t.ignition===true?'ON':t.ignition===false?'OFF':'--';
+    const _ignCls=t.ignition===true?'on':t.ignition===false?'off':'na';
+    const _extV=(t.ext_v!=null)?esc(t.ext_v)+'V':'--';
+    const _battV=(t.batt_v!=null)?esc(t.batt_v)+'V':'--';
+    const _fuel=(t.fuel_level!=null)?esc(t.fuel_level)+'%':'N/A';
+    const _fuelNote=(t.fuel_level!=null)?'':'(CAN not configured)';
+    const _odoKm=(t.total_odo_m!=null)?esc((t.total_odo_m/1000).toFixed(1))+' km':'N/A';
+    const _odoNote=(t.total_odo_m!=null)?'':'(CAN not configured)';
+    const _towStat=esc(t.tow_status||'Not Towing');
+    const _towCls=(t.tow_status&&t.tow_status.startsWith('Towing'))?'towing':'idle';
+    const _dTs=_fts(t.direct_ts_str);
+    const _nTs=_fts(t.navixy_ts_str);
+    const _conf=computeConfidence(t.source,t.speed);
+    const _gap=(t.freshness_gap_sec!=null)?esc(t.freshness_gap_sec)+' sec':'--';
     m.bindPopup(
-      "<b>"+esc(t.name)+"</b><br>IMEI: "+esc(t.imei)+
-      "<br>Speed: "+esc(t.speed)+" km/h<br>Heading: "+esc(t.heading)+"&deg;<br>State: "+esc(t.state)+
-      "<br>Source: "+esc(t.source)+"<br>Confidence: "+computeConfidence(t.source,t.speed)+
-      "<br>Chosen reason: "+esc(sourceReasonText(t.chosen_source_reason))+
-      ((t.freshness_gap_sec!=null)?("<br>Freshness gap: "+esc(t.freshness_gap_sec)+" sec"):"")+
-      ((t.position_conflict&&t.position_conflict_m!=null)?("<br><span style='color:#f85149'>Position conflict: "+esc(t.position_conflict_m)+" m</span>"):"")+
-      "<br>TS (chosen): "+esc(t.chosen_ts)+
-      "<br>TS (other): "+esc(t.other_source_ts)+
-      "<br>TS (active): "+esc(t.ts_str)+
-      "<br>Navixy TS: "+esc(t.navixy_ts_str)+
-      "<br>Last update: "+esc(t.display_last_update)
+      '<div class="gse-popup"><div class="gse-card">'+
+      '<div class="gse-hdr"><span class="gse-led '+_ledCls+'"></span>'+
+      '<span class="gse-name">'+esc(t.name)+'</span>'+
+      '<span class="gse-badge '+_srcCls+'">'+_srcBadge+'</span></div>'+
+      '<div class="gse-imei">IMEI: '+esc(t.imei)+'</div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">Classification</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Category</span><span class="gse-v">'+esc(t.category||'--')+'</span>'+
+      '<span class="gse-k">Sub-Category</span><span class="gse-v">'+esc(t.sub_category||'--')+'</span>'+
+      '</div></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">Position</span><span class="gse-sec-ts">ts: '+_fts(t.chosen_ts)+'</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Lat / Long</span><span class="gse-v">'+esc(t.lat)+', '+esc(t.lon)+'</span>'+
+      '<span class="gse-k">Heading</span><span class="gse-v">'+esc(t.heading)+'&deg;</span>'+
+      '<span class="gse-k">Speed</span><span class="gse-v">'+esc(t.speed)+' km/h</span>'+
+      '<span class="gse-k">Source</span><span class="gse-v">'+_srcBadge+'</span>'+
+      '<span class="gse-k">Confidence</span><span class="gse-v">'+_conf+'</span>'+
+      '</div></div>'+
+      ((t.position_conflict&&t.position_conflict_m!=null)?('<div class="gse-conflict">Position conflict: '+esc(t.position_conflict_m)+' m</div>'):'')+
+      '<div class="gse-sec"><span class="gse-sec-label">Last Seen</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Active</span><span class="gse-v">'+_fts(t.display_last_update)+'</span>'+
+      '<span class="gse-k">Direct</span><span class="gse-v">'+_dTs+'</span>'+
+      '<span class="gse-k">Navixy</span><span class="gse-v">'+_nTs+'</span>'+
+      '<span class="gse-k">Gap</span><span class="gse-v">'+_gap+'</span>'+
+      '</div></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">CAN Bus / AVL I/O</span><span class="gse-sec-ts">ts: '+_dTs+'</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Ignition</span><span class="gse-v '+_ignCls+'">'+_ign+'</span>'+
+      '<span class="gse-k">Ext Power</span><span class="gse-v">'+_extV+'</span>'+
+      '<span class="gse-k">Battery</span><span class="gse-v">'+_battV+'</span>'+
+      '</div></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">Fuel</span><span class="gse-sec-ts">ts: '+(t.fuel_level!=null?_dTs:'--')+'</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Level</span><span class="gse-v'+(t.fuel_level==null?' na':'')+'">'+ _fuel+(_fuelNote?' <span class="gse-fts">'+_fuelNote+'</span>':'')+'</span>'+
+      '</div></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">Odometer (ODM)</span><span class="gse-sec-ts">ts: '+(t.total_odo_m!=null?_dTs:'--')+'</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Reading</span><span class="gse-v'+(t.total_odo_m==null?' na':'')+'">'+ _odoKm+(_odoNote?' <span class="gse-fts">'+_odoNote+'</span>':'')+'</span>'+
+      '</div></div>'+
+      '<div class="gse-tow '+_towCls+'">Tow: '+_towStat+'</div>'+
+      '</div></div>', {maxWidth:400}
     );
     pts.push([tLat,tLon]);
     visibleTrackers += 1;
