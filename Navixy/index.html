@@ -539,6 +539,12 @@ function renderAggregateMap(d){
     if(!beaconsOn) return;
     visibleBeaconRows.push({b:b, bLat:Number(bLat), bLon:Number(bLon), bLifecycle:bLifecycle});
   });
+  tr.forEach(t=>{
+    if(t.lat!=null&&t.lon!=null){
+      const k=(Number(t.lat).toFixed(6)+','+Number(t.lon).toFixed(6));
+      beaconPointCount[k]=(beaconPointCount[k]||0)+1;
+    }
+  });
   visibleBeaconRows.forEach(row=>{
     const k=(Number(row.bLat).toFixed(6)+','+Number(row.bLon).toFixed(6));
     beaconPointCount[k]=(beaconPointCount[k]||0)+1;
