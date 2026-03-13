@@ -99,11 +99,7 @@ let API_STATE = API_BASE + "/liveMap/api/state";
   } catch(e) { /* use defaults */ }
 })();
 
-const FETCH_OPTS = {
-  headers: {"ngrok-skip-browser-warning":"1","Accept":"application/json"},
-  cache: "no-store",
-  mode: "cors"
-};
+let jsonpCounter=0;
 
 function esc(s){
   if(s==null) return "\u2014";
@@ -390,14 +386,10 @@ function mapCenterSkoda(){
 
 let errCount=0;
 let dataLoaded=false;
-async function refresh(){
+
+function handleJsonpData(d){
   const bar=document.getElementById("status-bar");
   try{
-    const resp=await fetch(API_STATE, FETCH_OPTS);
-    if(!resp.ok) throw new Error("HTTP "+resp.status);
-    const txt=await resp.text();
-    if(txt.trim().charAt(0)!=='{') throw new Error("Non-JSON response");
-    const d=JSON.parse(txt);
     dataLoaded=true;
     const agg=d.map_aggregate||{};
     let renderAggregate=agg;
@@ -414,14 +406,31 @@ async function refresh(){
     bar.className="status-bar";
     bar.textContent="Live \u2022 "+new Date().toLocaleTimeString();
   }catch(e){
+    bar.className="status-bar error";
+    bar.textContent="Parse error: "+e.message;
+  }
+}
+
+function refresh(){
+  const bar=document.getElementById("status-bar");
+  const cbName="handleJsonpData";
+  const scriptId="jsonp-loader";
+  const old=document.getElementById(scriptId);
+  if(old) old.remove();
+  const s=document.createElement("script");
+  s.id=scriptId;
+  s.src=API_STATE+"?callback="+cbName+"&_t="+Date.now();
+  s.onerror=function(){
     errCount++;
     bar.className="status-bar error";
     if(!dataLoaded && errCount>=3){
       bar.innerHTML='Cannot reach server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>, then come back.';
     }else{
-      bar.textContent="Retry ("+errCount+")... "+e.message;
+      bar.textContent="Retry ("+errCount+")...";
     }
-  }
+    s.remove();
+  };
+  document.head.appendChild(s);
 }
 
 refresh();
