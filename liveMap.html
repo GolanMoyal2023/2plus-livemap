@@ -100,6 +100,8 @@ let API_STATE = API_BASE + "/liveMap/api/state";
 })();
 
 let jsonpCounter=0;
+const CORS_PROXIES=["https://api.allorigins.win/raw?url=","https://corsproxy.io/?url="];
+let useProxy=-1;
 
 function esc(s){
   if(s==null) return "\u2014";
@@ -180,33 +182,38 @@ let ignorePopupClose=false;
 let legendCtl=null;
 let legendVisible=true;
 
-function renderAggregateMap(d){
-  const strictLive=true;
+function initMap(){
+  if(map) return;
   const mapDiv=document.getElementById("live-map");
   if(!mapDiv || typeof L==='undefined') return;
-  if(!map){
-    map=L.map("live-map",{zoomControl:true}).setView([32.1,34.9],10);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
-    mapLayer=L.layerGroup().addTo(map);
-    markerGroups.trackers=L.layerGroup().addTo(map);
-    markerGroups.beacons=L.layerGroup().addTo(map);
-    legendCtl=L.control({position:'bottomright'});
-    legendCtl.onAdd=function(){
-      const div=L.DomUtil.create('div','map-legend');
-      div.innerHTML=
-        '<div class="row"><span class="swatch" style="background:#3fb950"></span>Direct</div>'+
-        '<div class="row"><span class="swatch" style="background:#58a6ff"></span>Navixy</div>'+
-        '<div class="row"><span class="swatch" style="background:#a371f7"></span>Combined</div>'+
-        '<div class="row"><span class="swatch" style="background:#e3b341"></span>Attached sync</div>'+
-        '<div class="row"><span class="swatch" style="background:#f85149"></span>Towed sync</div>'+
-        '<div class="row"><span class="shape shape-square"></span> Equipment</div>'+
-        '<div class="row"><span class="shape shape-diamond"></span> Towed Device</div>'+
-        '<div class="row"><span class="shape shape-star">\u2605</span> Safety</div>';
-      L.DomEvent.disableClickPropagation(div);
-      return div;
-    };
-    legendCtl.addTo(map);
-  }
+  map=L.map("live-map",{zoomControl:true}).setView([32.1,34.9],10);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+  mapLayer=L.layerGroup().addTo(map);
+  markerGroups.trackers=L.layerGroup().addTo(map);
+  markerGroups.beacons=L.layerGroup().addTo(map);
+  legendCtl=L.control({position:'bottomright'});
+  legendCtl.onAdd=function(){
+    const div=L.DomUtil.create('div','map-legend');
+    div.innerHTML=
+      '<div class="row"><span class="swatch" style="background:#3fb950"></span>Direct</div>'+
+      '<div class="row"><span class="swatch" style="background:#58a6ff"></span>Navixy</div>'+
+      '<div class="row"><span class="swatch" style="background:#a371f7"></span>Combined</div>'+
+      '<div class="row"><span class="swatch" style="background:#e3b341"></span>Attached sync</div>'+
+      '<div class="row"><span class="swatch" style="background:#f85149"></span>Towed sync</div>'+
+      '<div class="row"><span class="shape shape-square"></span> Equipment</div>'+
+      '<div class="row"><span class="shape shape-diamond"></span> Towed Device</div>'+
+      '<div class="row"><span class="shape shape-star">\u2605</span> Safety</div>';
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+  };
+  legendCtl.addTo(map);
+}
+initMap();
+
+function renderAggregateMap(d){
+  const strictLive=true;
+  initMap();
+  if(!map) return;
   ignorePopupClose=true;
   mapLayer.clearLayers();
   markerGroups.trackers.clearLayers();
@@ -386,50 +393,87 @@ function mapCenterSkoda(){
 
 let errCount=0;
 let dataLoaded=false;
+let jsonpFails=0;
 
-function handleJsonpData(d){
+function processState(d){
   const bar=document.getElementById("status-bar");
-  try{
-    dataLoaded=true;
-    const agg=d.map_aggregate||{};
-    let renderAggregate=agg;
-    const now=Date.now();
-    const nowCount=((agg.trackers||[]).length + (agg.beacons||[]).length);
-    if(nowCount>0){
-      lastGoodAggregate=agg;
-      lastGoodAggregateAt=now;
-    }else if(lastGoodAggregate && (now - lastGoodAggregateAt) <= LIVE_STICKY_HOLD_MS){
-      renderAggregate=lastGoodAggregate;
-    }
-    renderAggregateMap({map_aggregate:renderAggregate});
-    errCount=0;
-    bar.className="status-bar";
-    bar.textContent="Live \u2022 "+new Date().toLocaleTimeString();
-  }catch(e){
-    bar.className="status-bar error";
-    bar.textContent="Parse error: "+e.message;
+  dataLoaded=true;
+  errCount=0;
+  jsonpFails=0;
+  const agg=d.map_aggregate||{};
+  let renderAggregate=agg;
+  const now=Date.now();
+  const nowCount=((agg.trackers||[]).length + (agg.beacons||[]).length);
+  if(nowCount>0){
+    lastGoodAggregate=agg;
+    lastGoodAggregateAt=now;
+  }else if(lastGoodAggregate && (now - lastGoodAggregateAt) <= LIVE_STICKY_HOLD_MS){
+    renderAggregate=lastGoodAggregate;
   }
+  renderAggregateMap({map_aggregate:renderAggregate});
+  bar.className="status-bar";
+  const mode=(useProxy>=0)?"proxy":"direct";
+  bar.textContent="Live ("+mode+") \u2022 "+new Date().toLocaleTimeString();
 }
 
-function refresh(){
+function handleJsonpData(d){ processState(d); }
+
+async function fetchViaProxy(){
   const bar=document.getElementById("status-bar");
-  const cbName="handleJsonpData";
+  for(let i=0;i<CORS_PROXIES.length;i++){
+    const pi=(useProxy>=0)?useProxy:i;
+    const proxyUrl=CORS_PROXIES[pi%CORS_PROXIES.length]+encodeURIComponent(API_STATE);
+    try{
+      const resp=await fetch(proxyUrl,{headers:{"Accept":"application/json"}});
+      if(!resp.ok) continue;
+      const d=await resp.json();
+      if(d&&d.map_aggregate){ useProxy=pi%CORS_PROXIES.length; processState(d); return true; }
+    }catch(e){ /* try next */ }
+    if(useProxy>=0) break;
+  }
+  return false;
+}
+
+async function refresh(){
+  const bar=document.getElementById("status-bar");
+  if(useProxy>=0){
+    const ok=await fetchViaProxy();
+    if(!ok){
+      errCount++;
+      bar.className="status-bar error";
+      bar.textContent="Proxy retry ("+errCount+")...";
+    }
+    return;
+  }
   const scriptId="jsonp-loader";
   const old=document.getElementById(scriptId);
   if(old) old.remove();
   const s=document.createElement("script");
   s.id=scriptId;
-  s.src=API_STATE+"?callback="+cbName+"&_t="+Date.now();
-  s.onerror=function(){
+  s.src=API_STATE+"?callback=handleJsonpData&_t="+Date.now();
+  let handled=false;
+  const origHandler=window.handleJsonpData;
+  window.handleJsonpData=function(d){ handled=true; processState(d); };
+  s.onerror=async function(){
+    jsonpFails++;
     errCount++;
-    bar.className="status-bar error";
-    if(!dataLoaded && errCount>=3){
-      bar.innerHTML='Cannot reach server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>, then come back.';
-    }else{
-      bar.textContent="Retry ("+errCount+")...";
-    }
     s.remove();
+    if(jsonpFails>=3){
+      bar.className="status-bar";
+      bar.textContent="Trying proxy...";
+      const ok=await fetchViaProxy();
+      if(!ok){
+        bar.className="status-bar error";
+        bar.innerHTML='Cannot reach server. <a href="'+API_BASE+'/liveMap/?callback='+encodeURIComponent(location.href)+'" style="color:#58a6ff;text-decoration:underline;font-weight:bold">Tap here to activate</a>';
+      }
+    }else{
+      bar.className="status-bar error";
+      bar.textContent="Connecting ("+errCount+")...";
+    }
   };
+  setTimeout(function(){
+    if(!handled&&s.parentNode){ s.remove(); s.onerror&&s.onerror(); }
+  },8000);
   document.head.appendChild(s);
 }
 
