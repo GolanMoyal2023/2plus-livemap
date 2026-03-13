@@ -378,7 +378,7 @@ function renderAggregateMap(d){
       '<span class="gse-k">Reading</span><span class="gse-v'+(t.total_odo_m==null?' na':'')+'">'+ _odoKm+(_odoNote?' <span class="gse-fts">'+_odoNote+'</span>':'')+'</span>'+
       '</div></div>'+
       '<div class="gse-tow '+_towCls+'">Tow: '+_towStat+'</div>'+
-      '</div></div>', {maxWidth:400}
+      '</div></div>', {maxWidth:400,autoClose:false,closeOnClick:false}
     );
     pts.push([tLat,tLon]);
     visibleTrackers += 1;
@@ -423,27 +423,44 @@ function renderAggregateMap(d){
     const isDropped=bLifecycle.includes('DROPPED');
     const c=L.marker([pxy[0],pxy[1]],{icon:icon,opacity:(isDropped?0.75:1.0),zIndexOffset:(isDropped?-100:0)}).addTo(markerGroups.beacons);
     beaconMarkerByMac[String(b.mac||'').toUpperCase()] = c;
+    const _bLedCls=bLifecycle.includes('DROPPED')?'stale':(b.is_stale?'stale':'stopped');
+    const _bSrcBadge=esc(b.source||'direct');
+    const _bSrcCls=(b.source==='navixy'?'navixy':(b.source==='combined'?'combined':'direct'));
+    const _bBatt=(b.battery_mv!=null)?esc(b.battery_mv)+' mV':'N/A';
+    const _bCoord=(b.lat!=null&&b.lon!=null)?(Number(b.lat).toFixed(6)+', '+Number(b.lon).toFixed(6)):'--';
+    const _bLc=esc(b.lifecycle_state||'UNKNOWN');
+    const _bLcCls=bLifecycle.includes('DROPPED')?'off':(bLifecycle==='TOWING'?'on':'na');
     c.bindPopup(
-      "<div class='beacon-popup'><div class='card'>"+
-      "<div class='head "+popupHeadClass(b.category)+"'>"+esc(b.label)+" <span class='cat'>"+esc(b.category||'Uncategorized')+"</span></div>"+
-      "<div class='body'>"+
-      "<div class='sec'>Stationery Device Information</div>"+
-      "<div class='kv'>"+
-      "<div class='k'>Type</div><div>Eye Beacon</div>"+
-      "<div class='k'>MAC</div><div>"+esc(b.mac)+"</div>"+
-      "<div class='k'>Battery</div><div>"+esc(b.battery_mv!=null?(b.battery_mv+' mV'):'N/A (not reported)')+"</div>"+
-      "<div class='k'>Lat / Long</div><div>"+esc((b.lat!=null&&b.lon!=null)?(Number(b.lat).toFixed(6)+', '+Number(b.lon).toFixed(6)):'\u2014')+"</div>"+
-      "</div>"+
-      "<div class='sec'>BLE Position Info</div>"+
-      "<div class='kv'>"+
-      "<div class='k'>Last set by</div><div>"+esc(b.last_seen_name)+"</div>"+
-      "<div class='k'>Last seen</div><div>"+esc(b.last_seen_ts)+"</div>"+
-      "<div class='k'>Lifecycle</div><div>"+esc(b.lifecycle_state||'\u2014')+"</div>"+
-      "</div>"+
-      (String(b.lifecycle_state||'').includes('DROPPED')?("<div class='warn'>DROPPED IN FIELD</div><div class='kv'><div class='k'>Dropped at</div><div>"+esc(b.drop_ts)+"</div><div class='k'>Dropped by</div><div>"+esc(b.last_seen_name||b.drop_by)+"</div></div>"):"")+
-      "<div class='actions'><span class='btn'>Update Drop Here</span><span class='btn'>Pick On Map</span><span class='btn'>Re-attach</span></div>"+
-      "</div></div></div>",
-      {offset:L.point(0, -28), maxWidth:360, autoPanPaddingTopLeft:L.point(30, 30), autoPanPaddingBottomRight:L.point(30, 30)}
+      '<div class="gse-popup"><div class="gse-card">'+
+      '<div class="gse-hdr"><span class="gse-led '+_bLedCls+'"></span>'+
+      '<span class="gse-name">'+esc(b.label)+'</span>'+
+      '<span class="gse-badge '+_bSrcCls+'">'+_bSrcBadge+'</span></div>'+
+      '<div class="gse-imei">MAC: '+esc(b.mac)+'</div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">Device Info</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Type</span><span class="gse-v">Eye Beacon</span>'+
+      '<span class="gse-k">Category</span><span class="gse-v">'+esc(b.category||'Uncategorized')+'</span>'+
+      '<span class="gse-k">Battery</span><span class="gse-v'+(b.battery_mv==null?' na':'')+'">'+_bBatt+'</span>'+
+      '</div></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">Position</span><span class="gse-sec-ts">ts: '+esc(b.last_seen_ts||'--')+'</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Lat / Long</span><span class="gse-v">'+esc(_bCoord)+'</span>'+
+      '<span class="gse-k">Set by</span><span class="gse-v">'+esc(b.last_seen_name||'--')+'</span>'+
+      '</div></div>'+
+      '<div class="gse-sec"><span class="gse-sec-label">BLE Status</span></div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Last Seen</span><span class="gse-v">'+esc(b.last_seen_ts||'--')+'</span>'+
+      '<span class="gse-k">Lifecycle</span><span class="gse-v '+_bLcCls+'">'+_bLc+'</span>'+
+      '<span class="gse-k">Source</span><span class="gse-v">'+_bSrcBadge+'</span>'+
+      '</div></div>'+
+      (bLifecycle.includes('DROPPED')?(
+      '<div class="gse-conflict">DROPPED IN FIELD</div>'+
+      '<div class="gse-body"><div class="gse-kv">'+
+      '<span class="gse-k">Dropped at</span><span class="gse-v">'+esc(b.drop_ts||'--')+'</span>'+
+      '<span class="gse-k">Dropped by</span><span class="gse-v">'+esc(b.last_seen_name||b.drop_by||'--')+'</span>'+
+      '</div></div>'):'')+
+      '</div></div>',
+      {offset:L.point(0,-28),maxWidth:400,autoClose:false,closeOnClick:false,autoPanPaddingTopLeft:L.point(30,30),autoPanPaddingBottomRight:L.point(30,30)}
     );
     c.on('popupopen', ()=>{ activeBeaconPopupMac = String(b.mac||'').toUpperCase(); });
     c.on('popupclose', ()=>{
